@@ -12,6 +12,8 @@ docker run -p 8000:8000 -v /var/run/docker.sock:/var/run/docker.sock mgireesh05/
 ```
 
 # Launch containers
+
+For e.g. this will pull ubuntu:latest and node:0-slim images from the docker repository
 ``` 
 	POST http://localhost:8000/launch_containers
 
