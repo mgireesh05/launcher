@@ -11,6 +11,9 @@ app.use(bodyParser.urlencoded({
 }));
 
 app.post('/launch_containers', function(req, resp) {
+	if (!req.body || !req.body.containersList) {
+		return resp.status(400).send("Send a list of containers");
+	}
 	resp.status(200).send("List received");
 	launcher.launchContainers(req.body.containersList);
 });

@@ -9,13 +9,18 @@ var util = require('util');
 var semver = require("semver");
 
 module.exports = function() {
+
+  var self = this;
+
   var pullImage = function(tag, cb, onProgress) {
+
     var opts = {
       "authconfig": {
-        "username": "",
+        "username": "", //add credentials if pulling from a private repo
         "password": ""
       }
     };
+
     docker.pull(tag, opts, function(err, cmdOutStream) {
       if (err) {
         console.error("err ", err);
@@ -61,6 +66,7 @@ module.exports = function() {
   };
 
   var pull = function(containerName) {
+
     return function(callback) {
       console.info("Pulling ", containerName);
 
@@ -80,9 +86,11 @@ module.exports = function() {
 
   var pullAll = function(containers, callback) {
     var pulls = [];
+
     containers.forEach(function(containerName) {
       pulls.push(pull(containerName));
     });
+
     async.parallel(pulls, function(err, results) {
       if (!err) {
         console.info("All images pulled");
@@ -95,32 +103,106 @@ module.exports = function() {
   };
 
   var pullImages = function(containerList) {
+
     return function(callback) {
       var pulls = [];
+
       for (var i in containerList) {
         pulls.push(containerList[i].containerName + ":" + containerList[i].containerVersionTag);
       }
 
-      console.info("List of containers to pull:", pulls);
       pullAll(pulls, function(err, results) {
         if (err) {
           return callback(err);
         } else {
-          callback(null);
+          callback();
         }
       });
     };
   };
 
-  this.launchContainers = function(containerList) {
-    console.log("ContainerList: ", containerList);
+  var runContainer = function(containerOptions) {
+
+    return function(callback) {
+
+      var createOptions = {};
+      createOptions.Env = containerOptions.envVarArray;
+      createOptions.Volumes = {};
+      createOptions.Volumes[containerOptions.containerMountPath] = {};
+      createOptions.ExposedPorts = {};
+      createOptions.ExposedPorts[containerOptions.containerPort] = {};
+
+      var startOptions = {};
+      startOptions.Binds = [containerOptions.hostMountPath + ":" + containerOptions.containerMountPath];
+      startOptions.PortBindings = {};
+      startOptions.PortBindings[containerOptions.containerPort] = [{
+        "HostPort": containerOptions.hostPort
+      }];
+
+      var containerName = containerOptions.containerName + ":" + containerOptions.containerVersionTag;
+      console.info("createOptions:", util.inspect(createOptions, false, null));
+      console.info("startOptions:", util.inspect(startOptions, false, null));
+
+      docker.run(containerName, null, process.stdout, createOptions, startOptions, function(err, data, container) {
+        if (err) {
+          console.error("err: ", err);
+          callback(err);
+        } else {
+          console.info("data: ", data);
+          console.info("container: ", container);
+          callback();
+        }
+      });
+    };
+  };
+
+  var runAll = function(containers, callback) {
+    var runs = [];
+
+    containers.forEach(function(containerOptions) {
+      runs.push(runContainer(containerOptions));
+    });
+
+    async.parallel(runs, function(err, results) {
+      if (!err) {
+        console.info("All containers started");
+        callback();
+      } else {
+        console.info("Error starting containers");
+        return callback(err);
+      }
+    });
+  };
+
+  var runContainers = function(containerList) {
+
+    return function(callback) {
+      var runs = [];
+
+      for (var i in containerList) {
+        runs.push(containerList[i]);
+      }
+
+      runAll(runs, function(err, results) {
+        if (err) {
+          return callback(err);
+        } else {
+          callback();
+        }
+      });
+    };
+  };
+
+  self.launchContainers = function(containerList) {
+
     async.series([
       pullImages(containerList),
+      runContainers(containerList)
     ], function(err) {
       if (!err) {
-        console.log("Done!");
+        console.info("Done!");
       } else {
-        console.log("Failed to update, err: ", err);
+        console.error("Failed to update, err: ", err);
       }
     });
   };
