@@ -1,5 +1,5 @@
 # launcher
-This demonstrates the usage of dockerode to remotely deploy docker containers. Feel free to add a comment or send a PR if you want more examples. 
+This demonstrates the usage of https://github.com/apocas/dockerode to remotely deploy docker containers. Feel free to add a comment or send a PR if you want more examples. 
 
 # Get the image
 
